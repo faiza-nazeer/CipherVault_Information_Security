@@ -128,7 +128,7 @@ Select File → Verify RSA Signature → AES-128 Decrypt → SHA-256 Integrity C
 
 ## Academic Use
 
-This project was developed as a final year project demonstration of:
+This project was developed as a semester project demonstration of:
 - Symmetric encryption (AES-128 from scratch)
 - Asymmetric cryptography (RSA-2048 for digital signatures)
 - Key derivation functions (PBKDF2)
