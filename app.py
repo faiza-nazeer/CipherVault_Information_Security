@@ -27,6 +27,7 @@ from crypto.rsa_sig import (
     compute_file_hash, is_available as rsa_available
 )
 from vault.scanner import scan_file
+from vault.ml_scanner import ml_scan
 from vault.storage import (
     save_encrypted_file, load_encrypted_file,
     list_user_files, delete_vault_file, get_vault_stats
@@ -318,6 +319,10 @@ def page_upload():
         scan_result = scan_file(filename, file_data)
         progress.progress(25, text="Scan complete...")
 
+        # Run ML scan alongside rule-based scan
+        progress.progress(30, text="Running ML analysis...")
+        ml_result = ml_scan(filename, file_data)
+
         with st.expander("🔍 Threat Scan Report", expanded=True):
             risk = scan_result["risk_level"]
             badge_class = {
@@ -328,25 +333,59 @@ def page_upload():
                 "CRITICAL": "cv-badge-critical",
             }.get(risk, "cv-badge-medium")
 
+            ml_pred = ml_result["ml_prediction"]
+            ml_conf = ml_result["confidence"]
+            ml_clean = ml_result["clean_confidence"]
+            ml_badge = "cv-badge-clean" if ml_pred == "CLEAN" else "cv-badge-high"
+
             st.markdown(f"""
             <div class="cv-card">
-                <b>Risk Level:</b> <span class="{badge_class}">{risk}</span><br>
                 <b>File:</b> {filename} ({len(file_data)/1024:.1f} KB)<br>
-                <b>Entropy:</b> {scan_result['entropy']}/8.0 — {scan_result['entropy_note']}<br>
-                <b>SHA-256:</b><br>
+                <b>Entropy:</b> {scan_result['entropy']}/8.0 — {scan_result['entropy_note']}<br><br>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                    <div>
+                        <b>🔎 Rule-Based Scanner</b><br>
+                        Risk Level: <span class="{badge_class}">{risk}</span>
+                    </div>
+                    <div>
+                        <b>🤖 ML Scanner (Random Forest)</b><br>
+                        Prediction: <span class="{ml_badge}">{ml_pred}</span><br>
+                        <small>Malicious: {ml_conf}% &nbsp;|&nbsp; Clean: {ml_clean}%</small>
+                    </div>
+                </div>
+                <br>
+                <b>SHA-256:</b>
                 <div class="cv-hash">{scan_result['sha256']}</div>
-                <b>MD5:</b><br>
+                <b>MD5:</b>
                 <div class="cv-hash">{scan_result['md5']}</div>
             </div>
             """, unsafe_allow_html=True)
 
+            # Rule-based findings
             if scan_result["findings"]:
+                st.markdown("**Rule-Based Findings:**")
                 for finding in scan_result["findings"]:
                     st.markdown(f"- {finding}")
             else:
-                st.success("✅ No threats detected")
+                st.success("✅ Rule-based scan: No threats detected")
 
-        if risk == "CRITICAL":
+            # ML findings
+            st.markdown("**ML Analysis:**")
+            if ml_result["explanation"]:
+                for reason in ml_result["explanation"]:
+                    icon = "⚠️" if ml_pred == "MALICIOUS" else "✅"
+                    st.markdown(f"- {icon} {reason}")
+
+            # Combined verdict
+            st.markdown("---")
+            if risk == "CRITICAL" or ml_pred == "MALICIOUS" and ml_conf > 80:
+                st.error("⛔ HIGH RISK — Both scanners flagged this file")
+            elif ml_pred == "MALICIOUS" or risk in ("HIGH", "MEDIUM"):
+                st.warning("⚠️ SUSPICIOUS — Proceed with caution")
+            else:
+                st.success("✅ SAFE — Both scanners report clean")
+
+        if risk == "CRITICAL" or (ml_result["ml_prediction"] == "MALICIOUS" and ml_result["confidence"] > 90):
             st.error("⛔ Upload blocked — critical threat detected!")
             return
 
