@@ -90,3 +90,4 @@ def run_benchmark(data_size_kb: int = 10) -> dict:
         "summary": summary,
         "des_available": _DES_OK,
     }
+
