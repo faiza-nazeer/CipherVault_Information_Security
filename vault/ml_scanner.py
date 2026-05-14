@@ -32,7 +32,7 @@ import numpy as np
 
 MODEL_PATH = Path(__file__).parent / "ml_model.pkl"
 
-# ── Feature extraction ────────────────────────────────────────────────────────
+# ── Feature extraction 
 
 def _entropy(data: bytes) -> float:
     if not data:
@@ -97,7 +97,7 @@ def extract_features(data: bytes) -> np.ndarray:
     ], dtype=np.float32)
 
 
-# ── Training data generation ──────────────────────────────────────────────────
+# ── Training data generation 
 
 def _generate_training_data():
     """
@@ -110,8 +110,7 @@ def _generate_training_data():
     rng = np.random.RandomState(42)
     X, y = [], []
 
-    # ── CLEAN samples ──────────────────────────────────────────────────────────
-
+    # ── CLEAN samples 
     # Plain text / markdown / CSV (high printable, low entropy, no PE)
     for _ in range(200):
         size = rng.randint(500, 50000)
@@ -165,9 +164,7 @@ def _generate_training_data():
         X.append(extract_features(data))
         y.append(0)
 
-    # ── MALICIOUS samples ─────────────────────────────────────────────────────
-
-    # Windows PE executable with suspicious API calls
+    # ── MALICIOUS samples 
     for _ in range(200):
         size = rng.randint(10000, 200000)
         data = b'MZ' + bytes(rng.randint(0, 256, size=60))
